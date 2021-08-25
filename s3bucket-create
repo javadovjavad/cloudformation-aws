@@ -1,15 +1,4 @@
 AWSTemplateFormatVersion: 2010-09-09
-Metadata:
-  'AWS::CloudFormation::Designer':
-    188d63da-8573-44d0-946e-c82e9163df3f:
-      size:
-        width: 60
-        height: 60
-      position:
-        x: 530
-        'y': 150
-      z: 0
-      embeds: []
 Resources:
   S3Bucket:
     Type: 'AWS::S3::Bucket'
