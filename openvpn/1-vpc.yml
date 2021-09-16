@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC'
+Parameters:
+  ForTags:
+    Description: Set name for tags
+    Default: "ForOpenVpn"
+    Type: String
+  SSHLocation:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+  VPCCidr:
+    Type: String
+    Default: 10.0.0.0/16
+  SubnetCidr:
+    Type: String
+    Default: 10.0.66.0/24
+Resources:
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCidr
+      Tags:
+        - Key: Name
+          Value: !Sub ${ForTags} VPC
+  MySubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref SubnetCidr
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${ForTags} Subnet
+  myInternetGateway:
+    Type: AWS::EC2::InternetGateway
+  myInternetGTAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+        InternetGatewayId: !Ref myInternetGateway
+        VpcId: !Ref myVPC
+  myRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+        VpcId: !Ref myVPC
+  DefaultRouteTable:
+    Type: AWS::EC2::Route
+    DependsOn: myInternetGTAttach
+    Properties:
+        RouteTableId: !Ref myRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref myInternetGateway
+  MySubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+        SubnetId: !Ref MySubnet
+        RouteTableId: !Ref myRouteTable
+  MyEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: myInternetGTAttach
+    Properties:
+        Domain: vpc
+  AssociateManagementAccessPort:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+        AllocationId: !GetAtt MyEIP.AllocationId
+        NetworkInterfaceId: !Ref myNetworkInterface
+  Secgroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for OpenVPN Server
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref 'SSHLocation' 
+        - IpProtocol: tcp
+          FromPort: 943
+          ToPort: 943
+          CidrIp: !Ref 'SSHLocation'
+        - IpProtocol: udp
+          FromPort: 1194
+          ToPort: 1194
+          CidrIp: !Ref 'SSHLocation'
+
+  myNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+        SubnetId: !Ref MySubnet
+        Description: Public Interface
+        GroupSet:
+         - !Ref "Secgroup"
+        SourceDestCheck: 'false'
+Outputs:
+    NetworkInterface:
+        Description: NetworkInterface
+        Value: !Ref myNetworkInterface
+        Export:
+            Name: 
+                Fn::Sub: "${AWS::StackName}-NetworkInterface"
