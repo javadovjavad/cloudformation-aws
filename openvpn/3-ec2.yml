@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Task-11 ~ OpenVPN and IAM.'
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair 
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  IamInstanceProfileStackName:
+    Type: String
+  NetworkInterfaceStackName:
+    Type: String
+Resources:
+  MyEc2:
+    Type: AWS::EC2::Instance
+    DeletionPolicy: Retain
+    Properties:
+      InstanceType: 't2.micro'
+      KeyName: !Ref 'KeyName'
+      ImageId: 'ami-04406fdec0f245050'
+      SourceDestCheck: 'false'
+      IamInstanceProfile:
+          Fn::ImportValue:
+            Fn::Sub: "${IamInstanceProfileStackName}-InstanceProfile"
+      NetworkInterfaces: 
+        - NetworkInterfaceId: 
+            Fn::ImportValue:
+                Fn::Sub: "${NetworkInterfaceStackName}-NetworkInterface"
+          DeviceIndex: '0'
