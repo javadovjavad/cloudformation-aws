@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Ucuncu LoadBalancer yaradiriq
+Parameters:
+    ElbSecurityGroupName:
+        Type: String
+        Default: SecgroupForLB
+
+    TargetGroupName:
+        Type: String
+        Default: Targetgroup
+
+    TargetGroupProtocol:
+        Type: String
+        Default: HTTP
+
+    TargetGroupPort:
+        Type: String
+        Default: 80
+
+    ElbName:
+        Type: String
+        Default: ElasticLoadBalancer
+        
+    ElbProtocol:
+        Type: String
+        Default: HTTP
+
+    ElbPort:
+        Type: String
+        Default: 80
+
+    ElbProtocolType:
+        Type: String
+        Default: forward
+    
+    VpcStackName:
+        Type: String
+        
+    InstanceStackName:
+        Type: String
+        
+    SecGroupStackName:
+        Type: String
+        #                    Fn::ImportValue:   
+#                               Fn::Sub: "${IamInstanceProfileStackName}-InstanceProfile"
+ 
+    
+Resources:
+
+  ElbTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Ref TargetGroupName
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 15
+      HealthyThresholdCount: 5
+      Matcher:
+        HttpCode: '200'
+      Protocol: !Ref TargetGroupProtocol
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+      Port: !Ref TargetGroupPort
+      VpcId:
+        Fn::ImportValue:
+                Fn::Sub: "${VpcStackName}-VPC"
+      TargetType: instance
+      Targets:
+        - Id: 
+            Fn::ImportValue:
+                Fn::Sub: ${InstanceStackName}-EC2Instance1
+          Port: 80
+        - Id: 
+            Fn::ImportValue:
+                Fn::Sub: ${InstanceStackName}-EC2Instance2
+          Port: 80
+
+  ElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref ElbName
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - Fn::ImportValue:
+                Fn::Sub: ${VpcStackName}-PublicSubnet
+        - Fn::ImportValue:
+                Fn::Sub: ${VpcStackName}-PublicSubnet2                
+      SecurityGroups:
+        - Fn::ImportValue:
+            !Sub ${SecGroupStackName}-ElbSecurityGroup
+
+  ElasticLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ElasticLoadBalancer
+      DefaultActions:
+        - Type: !Ref ElbProtocolType
+          TargetGroupArn: !Ref ElbTargetGroup
+      Port: !Ref ElbPort
+      Protocol: !Ref ElbProtocol
+
+Outputs:       
+  ElbTargetGroup:
+    Description: Target group for elastic load balancer
+    Value: !Ref ElbTargetGroup
+
+  ElasticLoadBalancerListener:
+    Description: Listener for elastic load balancer
+    Value: !Ref ElasticLoadBalancerListener
+
+  ElasticLoadBalancer:
+    Description: Elastic load balancer for application
+    Value: !Ref ElasticLoadBalancer   

@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Security Groups yaradiriq
+Parameters:
+    ElbSecurityGroupName:
+        Type: String
+        Default: SecgroupForLB
+        
+    InstanceSecurityGroupName:
+        Type: String
+        Default: SecgroupForEC2        
+    
+    VpcStackName:
+        Type: String
+
+Resources:
+    ElbSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          GroupName: !Ref ElbSecurityGroupName
+          GroupDescription: Enable SSH access and HTTP
+          VpcId: 
+            Fn::ImportValue:
+                Fn::Sub: "${VpcStackName}-VPC"
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+              
+    InstanceSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          GroupName: !Ref InstanceSecurityGroupName
+          GroupDescription: Enable SSH access and HTTP
+          VpcId: 
+            Fn::ImportValue:
+                !Sub "${VpcStackName}-VPC"
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              SourceSecurityGroupId: !Ref ElbSecurityGroup          
+
+Outputs:
+    InstanceSecurityGroup:
+        Description: Security group for instances
+        Value: !Ref InstanceSecurityGroup
+        Export:
+            Name:
+                Fn::Sub: "${AWS::StackName}-InstanceSecurityGroup"
+
+    ElbSecurityGroup:
+        Description: Security group for ELB
+        Value: !Ref ElbSecurityGroup
+        Export:
+            Name:
+                Fn::Sub: "${AWS::StackName}-ElbSecurityGroup"

@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2 yaradiriq
+Parameters:
+    InstanceType:
+        Description: EC2 instance type
+        Type: String
+        Default: t2.micro
+        AllowedValues:
+          - t2.micro
+          - t3.micro
+        ConstraintDescription: must be a valid EC2 instance type.
+
+    Instance1Name:
+        Description: Please enter the desired name of the first instance
+        Type: String
+        Default: Instance1
+    Instance2Name:
+        Description: Please enter the desired name of the first instance
+        Type: String
+        Default: Instance2        
+    KeyName:
+        Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+        Type: 'AWS::EC2::KeyPair::KeyName'
+        ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+        Default: mykey
+
+    AmiId:
+        Type: String
+        Default: ami-00dfe2c7ce89a450b        
+    
+    VpcStackName:
+        Type: String
+
+    SecGroupStackName:
+        Type: String        
+
+Resources:        
+
+  EC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AmiId
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: '0'
+          SubnetId:
+           Fn::ImportValue:
+                Fn::Sub: "${VpcStackName}-PublicSubnet"
+          GroupSet:
+            - Fn::ImportValue:
+                Fn::Sub: ${SecGroupStackName}-InstanceSecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash
+          sudo yum -y update
+          sudo yum install httpd -y
+          privateIP=`curl http://169.254.169.254/latest/meta-data/local-ipv4`
+          echo "Web server 1 with $privateIP " > /var/www/html/index.html
+          sudo service httpd start
+          chkconfig httpd on
+      Tags:
+        - Key: Name
+          Value: !Ref Instance1Name
+
+  EC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !Ref AmiId
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: '0'
+          SubnetId:
+            Fn::ImportValue:
+                Fn::Sub: "${VpcStackName}-PublicSubnet2"
+          GroupSet:
+            - Fn::ImportValue:
+                Fn::Sub: ${SecGroupStackName}-InstanceSecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash
+          sudo yum -y update
+          sudo yum install httpd -y
+          privateIP=`curl http://169.254.169.254/latest/meta-data/local-ipv4`
+          echo "Web server 2 with $privateIP " > /var/www/html/index.html
+          sudo service httpd start
+          chkconfig httpd on
+      Tags:
+        - Key: Name
+          Value: !Ref Instance2Name
+
+Outputs:
+    EC2Instance1:
+        Description: First instance
+        Value: !Ref EC2Instance1
+        Export:
+            Name:
+                Fn::Sub: "${AWS::StackName}-EC2Instance1"
+                
+
+    EC2Instance2:
+        Description: Second instance
+        Value: !Ref EC2Instance2  
+        Export:
+            Name:
+                Fn::Sub: "${AWS::StackName}-EC2Instance2"        
