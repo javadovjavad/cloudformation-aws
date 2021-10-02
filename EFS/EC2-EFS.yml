@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EC2 yaradiriq
+Parameters:
+    InstanceType:
+        Description: EC2 instance type
+        Type: String
+        Default: t2.micro
+        AllowedValues:
+          - t2.micro
+          - t3.micro
+        ConstraintDescription: must be a valid EC2 instance type.
+
+    Instance1Name:
+        Description: Please enter the desired name of the first instance
+        Type: String
+        Default: Instance1
+    KeyName:
+        Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+        Type: 'AWS::EC2::KeyPair::KeyName'
+        ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+
+    AmiId:
+        Type: String
+        Default: ami-00dfe2c7ce89a450b        
+    
+    VPC:
+        Type: AWS::EC2::VPC::Id
+    Subnet:
+        Type: AWS::EC2::Subnet::Id
+    EfsName:
+        Type: String
+        Default: fs-426cc839:/
+
+Resources:        
+    InstanceSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupName: InstanceSecurityGroup
+            GroupDescription: Enable SSH access and HTTP
+            VpcId: !Ref VPC 
+            SecurityGroupIngress:
+              - IpProtocol: tcp
+                FromPort: 22
+                ToPort: 22
+                CidrIp: 0.0.0.0/0
+
+              
+    EC2Instance1:
+        Type: AWS::EC2::Instance
+        Properties:
+            InstanceType: !Ref InstanceType
+            ImageId: !Ref AmiId
+            KeyName: !Ref KeyName
+            NetworkInterfaces:
+              - AssociatePublicIpAddress: true
+                DeviceIndex: '0'
+                SubnetId: !Ref Subnet
+                GroupSet:
+                  - !Ref InstanceSecurityGroup
+        
+            UserData:
+              Fn::Base64:
+                    !Sub |
+                    #!/bin/bash
+                    sudo   yum   -y   update
+                    sudo   yum   install   amazon-efs-utils   -y
+                    cd   /
+                    sudo   mkdir   efs-mount
+                    sudo   mount   -t   efs ${EfsName}   /efs-mount
+Outputs:
+    EC2Instance1:
+        Description: First instance
+        Value: !Ref EC2Instance1
+        Export:
+            Name:
+                Fn::Sub: "${AWS::StackName}-EC2Instance1"
+ 

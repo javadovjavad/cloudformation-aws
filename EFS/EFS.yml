@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  VPC:
+    Type: AWS::EC2::VPC::Id
+  Subnet:
+    Type: AWS::EC2::Subnet::Id
+
+Resources:
+ 
+  MountTargetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Ref: VPC
+      GroupDescription: Security group for mount target
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 2049
+        ToPort: 2049
+        CidrIp: 0.0.0.0/0
+       
+        
+  FileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+
+  MountTarget:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId:
+        Ref: FileSystem
+      SubnetId:
+        Ref: Subnet
+      SecurityGroups:
+      - Ref: MountTargetSecurityGroup
+      
+      
+ 
+Outputs:
+  MountTargetID:
+    Description: Mount target ID
+    Value:
+      Ref: MountTarget
+  FileSystemID:
+    Description: File system ID
+    Value:
+      Ref: FileSystem
+    Export:
+        Name:
+            Fn::Sub: "${AWS::StackName}-FileSystem"
