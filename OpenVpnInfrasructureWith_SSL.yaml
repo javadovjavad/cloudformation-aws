@@ -1,4 +1,5 @@
 # https://github.com/jed/certbot-route53
+# create SG for TCP 22,80,443,943,945 and UDP 1194
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "Jaxe infrastructure"
