@@ -1,0 +1,113 @@
+# https://github.com/jed/certbot-route53
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Jaxe infrastructure"
+Parameters:
+  VPC:
+    Description: Select a VPC
+    Type: AWS::EC2::VPC::Id
+
+  PublicSubnet:
+    Description: Select a Public Subnet
+    Type: AWS::EC2::Subnet::Id
+    
+  KeyName:
+    Description: Key pair for Instance
+    Type: AWS::EC2::KeyPair::KeyName
+  
+  SecurityGroupId:
+    Description: security group id
+    Type: AWS::EC2::SecurityGroup::Id
+
+  InstanceType:
+    Description: Instance Type
+    Type: String
+    Default: t2.micro
+  
+  DomainName:
+    Type: String
+    Default: "mk.darvaza.az"
+  
+  myHostedZoneID:
+    Type: AWS::Route53::HostedZone::Id
+
+Resources:
+  OpenVpnRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: OpenVpnAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 'ec2:*'
+                Resource: '*'
+  VpnInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref OpenVpnRole
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: ami-0e1415fedc1664f51
+      KeyName: !Ref KeyName
+      IamInstanceProfile: 
+        Ref: VpnInstanceProfile
+      SubnetId:
+        Ref: PublicSubnet
+      SecurityGroupIds:
+      - Ref: SecurityGroupId
+      UserData:
+        Fn::Base64:
+          !Sub |
+          #!/bin/bash
+          sudo apt-get update -y
+          echo -e "password\npassword" | passwd openvpn
+          sudo curl -o setup.sh https://gist.githubusercontent.com/sabbour/84699937169e50b29a46d7d948866f1b/raw/f3eaae99aac4bde9afc0380374030cefeca01b65/setup-certbot-openvpn-letsencrypt.sh
+          sudo chmod +x setup.sh
+          sudo ./setup.sh -d "mk.darvaza.az" -e "info@darvaza.az"
+
+
+      Tags:
+        - Key: Name
+          Value: "My server1"
+  IPAddress:
+    Type: AWS::EC2::EIP
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref 'EC2Instance'
+      EIP: !Ref 'IPAddress'
+
+
+  myDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId : !Ref 'myHostedZoneID'
+      Name: !Ref 'DomainName'
+      ResourceRecords:
+      - !Ref 'IPAddress'
+      TTL: 60
+      Type: A
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created EC2 instance
+    Value: !Ref 'EC2Instance'
+  InstanceIPAddress:
+    Description: IP address of the newly created EC2 instance
+    Value: !Ref 'IPAddress'
