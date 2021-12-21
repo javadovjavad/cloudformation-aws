@@ -1,1 +1,21 @@
-1
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda function with cfn-response.
+Resources:
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.6
+      Role: arn:aws:iam::558850831704:role/LambdaS3FullAccess
+      FunctionName: "FunctionCFN"
+      Handler: index.lambda_handler
+      Code:
+        ZipFile: |
+          import json, boto3
+          def lambda_handler(event, context):
+              s3 = boto3.client('s3')
+              response= s3.get_object(Bucket='test-tem-plate-87-y', Key = 'myJsonFile1.json')
+              data = response["Body"].read()
+              print(data)
+      Description: Function  - stack creation.
+      TracingConfig:
+        Mode: Active
